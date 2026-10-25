@@ -155,8 +155,15 @@ if (D) __start();
   var hk = function (k) { return crypto.subtle.importKey("raw", k, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]); };
   var sign = async function (k, d) { return new Uint8Array(await crypto.subtle.sign("HMAC", k, d)); };
   try {
-    var r = await fetch("d/" + m[1] + ".json", { cache: "no-store" });
-    if (!r.ok) return fail();
+    var r = null;
+    for (var tries = 0; tries < 18; tries++) {
+      r = await fetch("d/" + m[1] + ".json?t=" + Date.now(), { cache: "no-store" });
+      if (r.ok || r.status !== 404) break;
+      sub.textContent = "Preparing your catalog… it will appear automatically in a moment.";
+      await new Promise(function (ok) { setTimeout(ok, 10000); });
+    }
+    if (!r || !r.ok) return fail();
+    sub.textContent = "Loading…";
     var o = await r.json(), te = new TextEncoder();
     var k0 = await hk(b64(m[2]));
     var encKey = await hk(await sign(k0, te.encode("enc"))), macKey = await hk(await sign(k0, te.encode("mac")));
