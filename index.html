@@ -69,6 +69,19 @@ a.btn{display:inline-block;text-align:center;background:var(--accent);color:var(
 .terms{margin:0 0 8px;padding-left:18px}
 .terms li{margin:2px 0}
 .note{font-size:13px;color:var(--muted);margin:4px 0}
+[hidden]{display:none!important}
+#tabs{margin-top:10px}
+.about{max-width:880px}
+.about h2{font-size:24px;margin:8px 0}
+.about .lead{font-size:16px;line-height:1.6}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:18px 0}
+.stats div,.pts div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.stats b{display:block;font-size:24px;letter-spacing:-.01em}
+.stats span{font-size:13px;color:var(--muted)}
+.pts{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.pts h3{margin:0 0 4px;font-size:16px}
+.pts p{margin:0;font-size:14px;color:var(--muted);line-height:1.55}
+.about .links{margin-top:18px;display:flex;flex-wrap:wrap;gap:8px}
 .add{font:inherit;font-size:13px;margin-top:8px;padding:6px 10px;border:1px solid var(--accent);border-radius:8px;background:transparent;color:var(--accent);cursor:pointer;width:100%}
 .add.on{background:var(--accent);color:var(--bg)}
 a.btn.wa{background:#1f7a4d;color:#fff;margin-left:6px}
@@ -97,6 +110,7 @@ a.btn.wa{background:#1f7a4d;color:#fff;margin-left:6px}
 <header><div class="wrap">
   <h1>TIME BRIDGE — Wholesale Stock</h1>
   <div class="sub" id="sub"></div>
+  <div class="seg" id="tabs" role="tablist"><button type="button" data-t="stock" class="on">Stock</button><button type="button" data-t="about">About us</button></div>
   <div class="tools">
     <input id="q" type="search" placeholder="Search brand, model, ref…" aria-label="Search">
     <select id="brand" aria-label="Brand"><option value="">All brands</option></select>
@@ -106,7 +120,7 @@ a.btn.wa{background:#1f7a4d;color:#fff;margin-left:6px}
     <div class="seg" id="cur" role="group" aria-label="Currency"></div>
   </div>
 </div></header>
-<main><div class="wrap"><section id="pickSec" hidden><h2 class="sec">Pick Up <span class="sub">— fixed clearance prices</span></h2><div class="grid" id="pgrid"></div></section><h2 class="sec" id="allH" hidden>All stock</h2><div class="grid" id="grid"></div><div class="empty" id="empty" hidden>No items match.</div></div></main>
+<main><div class="wrap"><div id="stockV"><section id="pickSec" hidden><h2 class="sec">Pick Up <span class="sub">— fixed clearance prices</span></h2><div class="grid" id="pgrid"></div></section><h2 class="sec" id="allH" hidden>All stock</h2><div class="grid" id="grid"></div><div class="empty" id="empty" hidden>No items match.</div></div><section id="aboutV" class="about" hidden></section></div></main>
 <footer><div class="wrap"><ul class="terms" id="terms"></ul>Wholesale prices per piece. Stock is updated every 30 minutes and items may sell on other channels without notice — please confirm availability with the reference number.</div></footer>
 <dialog id="dlg"><div class="dlg">
   <div class="viewer"><button class="close" id="x" aria-label="Close">×</button>
@@ -128,6 +142,23 @@ function __start(){
   var when = D && D.builtAt ? new Date(D.builtAt) : null;
   document.getElementById('sub').textContent = (D && D.buyer ? 'Prepared for ' + D.buyer + ' · ' : '') + items.filter(function (it) { return !it.reserved; }).length + ' pieces available' + (when ? ' · updated ' + when.toLocaleString() : '');
   document.getElementById('terms').innerHTML = ((D && D.terms) || []).map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('');
+  var tabs = document.getElementById('tabs'), A = D && D.about;
+  if (A) {
+    var wa0 = D.order && D.order.whatsapp;
+    document.getElementById('aboutV').innerHTML = '<h2>' + esc(A.title) + '</h2><p class="lead">' + esc(A.lead) + '</p>' +
+      '<div class="stats">' + (A.stats || []).map(function (s) { return '<div><b>' + esc(s.n) + '</b><span>' + esc(s.label) + '</span></div>'; }).join('') + '</div>' +
+      '<div class="pts">' + (A.points || []).map(function (p) { return '<div><h3>' + esc(p.h) + '</h3><p>' + esc(p.p) + '</p></div>'; }).join('') + '</div>' +
+      '<p class="links">' + (wa0 ? '<a class="btn wa" style="margin-left:0" target="_blank" rel="noopener" href="https://wa.me/' + wa0.replace(/[^0-9]/g, '') + '">WhatsApp</a> ' : '') +
+      (A.instagram ? '<a class="btn" target="_blank" rel="noopener" href="' + esc(A.instagram) + '">Instagram</a> ' : '') +
+      (D.contact ? '<a class="btn" href="mailto:' + esc(D.contact) + '">Email</a>' : '') + '</p>';
+    Array.prototype.forEach.call(tabs.children, function (b) { b.onclick = function () {
+      var t = b.getAttribute('data-t');
+      document.getElementById('stockV').hidden = t !== 'stock'; document.getElementById('aboutV').hidden = t !== 'about';
+      document.querySelector('.tools').hidden = t !== 'stock';
+      Array.prototype.forEach.call(tabs.children, function (x) { x.className = x === b ? 'on' : ''; });
+      if (t === 'stock') draw(); window.scrollTo(0, 0);
+    }; });
+  } else tabs.hidden = true;
 
   var brands = {}; items.forEach(function (it) { if (it.brand) brands[it.brand] = 1; });
   var bsel = document.getElementById('brand');
@@ -160,7 +191,7 @@ function __start(){
   function cols() { var t = getComputedStyle(grid).gridTemplateColumns; return Math.max(1, t && t !== 'none' ? t.split(' ').filter(Boolean).length : 1); }
   var lastCols = 0;
   window.addEventListener('resize', function () { var c = cols(); if (c !== lastCols) { lastCols = c; draw(); } });
-  function badge(it) { return it.reserved ? '<span class="badge b-res">Unavailable</span>' : it.tier === 'pickup' ? '<span class="badge b-pick">Pick Up</span>' : it.tier === 'new' ? '<span class="badge b-new">New</span>' : ''; }
+  function badge(it) { return it.reserved ? '<span class="badge b-res">Unavailable</span>' : it.fresh ? '<span class="badge b-new">New</span>' : ''; }
   function card(it) {
       return '<div class="card' + (it.reserved ? ' res' : '') + '" tabindex="0" data-sku="' + esc(it.sku) + '">' +
         '<div class="phw"><img class="ph" loading="lazy" alt="' + esc(it.brand + ' ' + it.model) + '" src="' + img(it.images[0], 600) + '">' +
@@ -184,7 +215,7 @@ function __start(){
     Array.prototype.forEach.call(th.children, function (t, j) { t.onclick = function () { show(j); }; });
     var rows = [['Reference', cur_it.sku], ['Type', cur_it.type], ['Movement', cur_it.movement], ['Case', [cur_it.caseSize ? cur_it.caseSize + ' mm' : '', cur_it.caseMaterial].filter(Boolean).join(', ')],
                 ['Condition', cur_it.condition], ['Gender', cur_it.gender], ['Strap', cur_it.band], ['Included', cur_it.accessories]].filter(function (r) { return r[1]; });
-    var mail = D.contact ? '<a class="btn" href="mailto:' + esc(D.contact) + '?subject=' + encodeURIComponent('Inquiry Ref. ' + cur_it.sku + ' ' + cur_it.brand + ' ' + cur_it.model) + '">Inquire about this piece</a>' : '';
+    var mail = D.contact && !(D.order && D.order.whatsapp) ? '<a class="btn" href="mailto:' + esc(D.contact) + '?subject=' + encodeURIComponent('Inquiry Ref. ' + cur_it.sku + ' ' + cur_it.brand + ' ' + cur_it.model) + '">Inquire about this piece</a>' : '';
     if (cur_it.reserved) mail = '<p class="note">This piece is currently unavailable.</p>';
     else if (cur_it.tier === 'pickup') mail = '<p class="note">Pick Up · fixed price</p>' + mail;
     if (!cur_it.reserved) mail = addBtn(cur_it) + '<div>' + mail + wa(cur_it) + '</div>';
@@ -280,7 +311,7 @@ if (D) __start();
     Array.prototype.forEach.call(el('cLines').querySelectorAll('[data-rm]'), function (b) { b.onclick = function () { toggle(b.getAttribute('data-rm')); }; });
     var rows = [['Subtotal', fmt(q.sub, cur)]];
     if (cc === '_other') rows.push(['Shipping', 'Contact us']);
-    else rows.push(['Shipping (DHL Express)', q.free ? 'Free' : q.ship === null ? 'Choose a country' : fmt(q.ship, cur)]);
+    else rows.push(['Shipping (DHL or UPS)', q.free ? 'Free' : q.ship === null ? 'Choose a country' : fmt(q.ship, cur)]);
     if (q.fee) rows.push(['PayPal fee', fmt(q.fee, cur)]);
     var more = (C.free[cur] || 0) - q.nonPick;
     var html = rows.map(function (r) { return '<div><span>' + r[0] + '</span><span>' + r[1] + '</span></div>'; }).join('') +
