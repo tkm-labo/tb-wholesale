@@ -75,11 +75,16 @@ a.btn{display:inline-block;text-align:center;background:var(--accent);color:var(
 .about h2{font-size:24px;margin:8px 0}
 .about .lead{font-size:16px;line-height:1.6}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:18px 0}
-.stats div,.pts div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.stats>div,.pts>div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
 .stats b{display:block;font-size:24px;letter-spacing:-.01em}
 .stats span{font-size:13px;color:var(--muted)}
 .pts{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
-.pts h3{margin:0 0 4px;font-size:16px}
+.pts h3{margin:0;font-size:16px}
+.ph3{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.pts .ic{flex:none;display:inline-flex;width:34px;height:34px;border-radius:9px;background:var(--chip);color:var(--accent);align-items:center;justify-content:center}
+.pts .ic svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.logos{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.logos img{height:30px;box-sizing:border-box;background:#fff;padding:6px 10px;border-radius:7px;border:1px solid var(--line)}
 .pts p{margin:0;font-size:14px;color:var(--muted);line-height:1.55}
 .about .links{margin-top:18px;display:flex;flex-wrap:wrap;gap:8px}
 .add{font:inherit;font-size:13px;margin-top:8px;padding:6px 10px;border:1px solid var(--accent);border-radius:8px;background:transparent;color:var(--accent);cursor:pointer;width:100%}
@@ -147,7 +152,7 @@ function __start(){
     var wa0 = D.order && D.order.whatsapp;
     document.getElementById('aboutV').innerHTML = '<h2>' + esc(A.title) + '</h2><p class="lead">' + esc(A.lead) + '</p>' +
       '<div class="stats">' + (A.stats || []).map(function (s) { return '<div><b>' + esc(s.n) + '</b><span>' + esc(s.label) + '</span></div>'; }).join('') + '</div>' +
-      '<div class="pts">' + (A.points || []).map(function (p) { return '<div><h3>' + esc(p.h) + '</h3><p>' + esc(p.p) + '</p></div>'; }).join('') + '</div>' +
+      '<div class="pts">' + (A.points || []).map(function (p) { return '<div>' + (window.__wsPoint ? __wsPoint(p, esc) : '<h3>' + esc(p.h) + '</h3><p>' + esc(p.p) + '</p>') + '</div>'; }).join('') + '</div>' +
       '<p class="links">' + (wa0 ? '<a class="btn wa" style="margin-left:0" target="_blank" rel="noopener" href="https://wa.me/' + wa0.replace(/[^0-9]/g, '') + '">WhatsApp</a> ' : '') +
       (A.instagram ? '<a class="btn" target="_blank" rel="noopener" href="' + esc(A.instagram) + '">Instagram</a> ' : '') +
       (D.contact ? '<a class="btn" href="mailto:' + esc(D.contact) + '">Email</a>' : '') + '</p>';
@@ -178,7 +183,9 @@ function __start(){
     if (s !== 'new') list = list.slice().sort(function (x, y) { var a = (x.prices || {})[cur] || 0, c = (y.prices || {})[cur] || 0; return s === 'lo' ? a - c : c - a; });
     var isPick = function (it) { return it.tier === 'pickup' && !it.reserved; };
     var cap = cols() * ((D && D.pickRows) || 5);
-    var pick = list.filter(isPick).sort(function (x, y) { return (x.pickRank || 1e9) - (y.pickRank || 1e9); }).slice(0, cap);
+    var pick = list.filter(isPick);
+    if (s === 'new') pick.sort(function (x, y) { return (x.pickRank || 1e9) - (y.pickRank || 1e9); });
+    pick = pick.slice(0, cap);
     var rest = list.filter(function (it) { return pick.indexOf(it) < 0; });
     rest = rest.filter(function (it) { return !it.reserved; }).concat(rest.filter(function (it) { return it.reserved; }));
     document.getElementById('pickSec').hidden = !pick.length;
@@ -371,6 +378,21 @@ if (D) __start();
       var on = cart.indexOf(s) >= 0; b.className = 'add' + (on ? ' on' : ''); b.textContent = on ? 'In order ✓' : 'Add to order';
     });
   }
+
+  // ★v1.17.2 About us の見出しの線画（自前の単純な図形）とロゴ
+  var ICONS = {
+    globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+    pin: '<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>',
+    check: '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/>',
+    truck: '<path d="M3 6h11v10H3zM14 9h4l3 3v4h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/>',
+    cart: '<path d="M3 4h2l2.4 10.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.8L20 8H6.2"/><circle cx="9.5" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/>',
+    repeat: '<path d="M4 11a7 7 0 0 1 12-4.9L19 9M20 13a7 7 0 0 1-12 4.9L5 15M19 4v5h-5M5 20v-5h5"/>'
+  };
+  window.__wsPoint = function (p, esc) {
+    var ic = ICONS[p.icon] ? '<span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24">' + ICONS[p.icon] + '</svg></span>' : '';
+    var logos = (p.logos || []).map(function (l) { return '<img alt="' + esc(l.alt) + '" src="' + esc(l.src) + '" loading="lazy">'; }).join('');
+    return '<div class="ph3">' + ic + '<h3>' + esc(p.h) + '</h3></div><p>' + esc(p.p) + '</p>' + (logos ? '<div class="logos">' + logos + '</div>' : '');
+  };
 
   window.__wsCart = { has: function (s) { return cart.indexOf(s) >= 0; }, toggle: toggle, sync: function () { if (api) { bar(); render(); } } };
   window.__wsCartInit = function (a) {
