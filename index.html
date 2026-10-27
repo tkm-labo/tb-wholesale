@@ -69,6 +69,28 @@ a.btn{display:inline-block;text-align:center;background:var(--accent);color:var(
 .terms{margin:0 0 8px;padding-left:18px}
 .terms li{margin:2px 0}
 .note{font-size:13px;color:var(--muted);margin:4px 0}
+.add{font:inherit;font-size:13px;margin-top:8px;padding:6px 10px;border:1px solid var(--accent);border-radius:8px;background:transparent;color:var(--accent);cursor:pointer;width:100%}
+.add.on{background:var(--accent);color:var(--bg)}
+a.btn.wa{background:#1f7a4d;color:#fff;margin-left:6px}
+#cbar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:20;background:var(--fg);color:var(--bg);border-radius:999px;padding:10px 10px 10px 18px;display:flex;gap:12px;align-items:center;box-shadow:0 6px 24px rgba(0,0,0,.25);max-width:calc(100vw - 32px)}
+#cbar button{font:inherit;font-weight:650;border:0;border-radius:999px;padding:8px 14px;background:var(--bg);color:var(--fg);cursor:pointer}
+#cdlg .cbox{padding:18px;display:flex;flex-direction:column;gap:12px;max-width:640px;margin:0 auto}
+#cdlg h2{margin:0;font-size:20px}
+#cdlg .ln{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid var(--line);padding:6px 0;font-size:14px}
+#cdlg .ln button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px}
+#cdlg label{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--muted)}
+#cdlg input,#cdlg select{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+#cdlg .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:520px){#cdlg .two{grid-template-columns:1fr}}
+#cdlg .pay{display:flex;flex-direction:column;gap:6px;font-size:14px}
+#cdlg .pay label{flex-direction:row;align-items:center;gap:8px;color:var(--fg);font-size:14px}
+#cdlg .sum div{display:flex;justify-content:space-between;font-size:14px;padding:2px 0}
+#cdlg .sum .tot{font-weight:700;font-size:17px;border-top:1px solid var(--line);margin-top:4px;padding-top:6px}
+#cdlg .agree{flex-direction:row;align-items:flex-start;gap:8px;color:var(--fg)}
+#cdlg .go{font:inherit;font-weight:700;border:0;border-radius:10px;padding:12px;background:var(--accent);color:var(--bg);cursor:pointer}
+#cdlg .go:disabled{opacity:.5;cursor:default}
+#cdlg .msg{font-size:14px;padding:10px;border-radius:8px;background:var(--chip)}
+#cdlg .msg.err{background:#fde8e8;color:#8a1c1c}
 </style>
 </head>
 <body>
@@ -133,6 +155,7 @@ function __start(){
     document.getElementById('pgrid').innerHTML = pick.map(card).join('');
     empty.hidden = list.length > 0;
     grid.innerHTML = rest.map(card).join('');
+    if (window.__wsCart) __wsCart.sync();
   }
   function cols() { var t = getComputedStyle(grid).gridTemplateColumns; return Math.max(1, t && t !== 'none' ? t.split(' ').filter(Boolean).length : 1); }
   var lastCols = 0;
@@ -144,12 +167,14 @@ function __start(){
         (it.reserved ? '<span class="ribbon">Unavailable</span>' : '') + '</div>' +
         '<div class="body"><div class="brand">' + esc(it.brand || '—') + (it.reserved ? '' : badge(it)) + '</div><div class="model">' + esc(it.model) + '</div>' +
         '<div class="specs">' + esc(specs(it)) + '</div>' +
-        '<div class="row"><span class="price">' + money(it) + '</span><span class="ref">Ref. ' + esc(it.sku) + '</span></div></div></div>';
+        '<div class="row"><span class="price">' + money(it) + '</span><span class="ref">Ref. ' + esc(it.sku) + '</span></div>' + addBtn(it) + '</div></div>';
   }
+  function addBtn(it) { if (!D.order || it.reserved) return ''; var on = window.__wsCart && __wsCart.has(it.sku); return '<button type="button" class="add' + (on ? ' on' : '') + '" data-add="' + esc(it.sku) + '">' + (on ? 'In order ✓' : 'Add to order') + '</button>'; }
+  function wa(it) { var n = D.order && D.order.whatsapp; return n ? '<a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/' + n.replace(/[^0-9]/g, '') + '?text=' + encodeURIComponent('Hello, I have a question about Ref. ' + it.sku + ' (' + it.brand + ' ' + it.model + ').') + '">Ask on WhatsApp</a>' : ''; }
   ['q', 'brand', 'sort'].forEach(function (id) { document.getElementById(id).addEventListener(id === 'q' ? 'input' : 'change', draw); });
   var mainEl = document.querySelector('main');
-  mainEl.addEventListener('click', function (e) { var c = e.target.closest('.card'); if (c) open(c.getAttribute('data-sku')); });
-  mainEl.addEventListener('keydown', function (e) { if (e.key === 'Enter') { var c = e.target.closest('.card'); if (c) open(c.getAttribute('data-sku')); } });
+  mainEl.addEventListener('click', function (e) { if (e.target.closest('[data-add]')) return; var c = e.target.closest('.card'); if (c) open(c.getAttribute('data-sku')); });
+  mainEl.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.target.closest('[data-add]')) { var c = e.target.closest('.card'); if (c) open(c.getAttribute('data-sku')); } });
 
   var dlg = document.getElementById('dlg'), big = document.getElementById('big'), th = document.getElementById('th'), cur_it = null, idx = 0;
   function show(i) { idx = (i + cur_it.images.length) % cur_it.images.length; big.src = img(cur_it.images[idx], 1600); Array.prototype.forEach.call(th.children, function (t, j) { t.className = j === idx ? 'on' : ''; }); }
@@ -162,6 +187,7 @@ function __start(){
     var mail = D.contact ? '<a class="btn" href="mailto:' + esc(D.contact) + '?subject=' + encodeURIComponent('Inquiry Ref. ' + cur_it.sku + ' ' + cur_it.brand + ' ' + cur_it.model) + '">Inquire about this piece</a>' : '';
     if (cur_it.reserved) mail = '<p class="note">This piece is currently unavailable.</p>';
     else if (cur_it.tier === 'pickup') mail = '<p class="note">Pick Up · fixed price</p>' + mail;
+    if (!cur_it.reserved) mail = addBtn(cur_it) + '<div>' + mail + wa(cur_it) + '</div>';
     document.getElementById('info').innerHTML = '<h2>' + esc(cur_it.brand) + badge(cur_it) + '</h2><div class="model">' + esc(cur_it.model) + '</div>' +
       '<div class="price">' + money(cur_it) + '</div><dl>' + rows.map(function (r) { return '<dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd>'; }).join('') + '</dl>' + mail;
     show(0); dlg.showModal();
@@ -172,9 +198,160 @@ function __start(){
   dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
   document.addEventListener('keydown', function (e) { if (!dlg.open) return; if (e.key === 'ArrowLeft') show(idx - 1); if (e.key === 'ArrowRight') show(idx + 1); });
   drawSeg(); draw();
+  if (window.__wsCartInit) __wsCartInit({ items: items, order: D.order, cur: function () { return cur; }, redraw: draw, esc: esc });
 }
 if (D) __start();
 </script>
+<script>(function _wsCartClient_() {
+  var api = null, byS = {}, cart = [], C = null, KEY = 'ws_cart', SYM = { USD: '$', EUR: '€' };
+  var ls = { get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+             set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+  var fmt = function (v, cur) { return (SYM[cur] || '') + Number(v).toLocaleString('en-US') + ' ' + cur; };
+  var el = function (id) { return document.getElementById(id); };
+
+  function quote(cur, cc, method) {
+    var sub = 0, nonPick = 0, ls2 = cart.map(function (s) { return byS[s]; }).filter(Boolean);
+    ls2.forEach(function (it) { var p = it.prices[cur] || 0; sub += p; if (it.tier !== 'pickup') nonPick += p; });
+    var free = ls2.length > 0 && nonPick >= (C.free[cur] || 1e12);
+    var c = C.countries[cc], ship = null;
+    if (free) ship = 0; else if (c) ship = Math.ceil(c[cur] + C.extra[cur] * (ls2.length - 1));
+    var fee = method === 'paypal' && ship !== null ? Math.ceil((sub + ship) * C.paypalRate) : 0;
+    return { n: ls2.length, sub: sub, nonPick: nonPick, free: free, ship: ship, fee: fee, total: ship === null ? null : sub + ship + fee };
+  }
+  function save() { ls.set(KEY, JSON.stringify(cart)); }
+
+  function bar() {
+    var b = el('cbar');
+    if (!cart.length) { if (b) b.hidden = true; return; }
+    if (!b) {
+      b = document.createElement('div'); b.id = 'cbar';
+      b.innerHTML = '<span id="cbarT"></span><button type="button" id="cbarB">Review order</button>';
+      document.body.appendChild(b);
+      el('cbarB').onclick = openDlg;
+    }
+    b.hidden = false;
+    var cur = api.cur(), q = quote(cur, '', '');
+    el('cbarT').textContent = q.n + (q.n === 1 ? ' piece' : ' pieces') + ' · ' + fmt(q.sub, cur);
+  }
+
+  function dlg() {
+    var d = el('cdlg');
+    if (d) return d;
+    d = document.createElement('dialog'); d.id = 'cdlg';
+    var opts = Object.keys(C.countries).sort(function (a, b) { return C.countries[a].name.localeCompare(C.countries[b].name); })
+      .map(function (cc) { return '<option value="' + cc + '">' + api.esc(C.countries[cc].name) + '</option>'; }).join('');
+    var f = function (id, label, type, ph) { return '<label>' + label + '<input id="' + id + '" type="' + (type || 'text') + '"' + (ph ? ' placeholder="' + ph + '"' : '') + '></label>'; };
+    d.innerHTML = '<div class="cbox"><div style="display:flex;justify-content:space-between;align-items:center"><h2>Your order</h2>' +
+      '<button type="button" id="cX" style="border:0;background:none;font-size:22px;cursor:pointer;color:var(--fg)" aria-label="Close">×</button></div>' +
+      '<div id="cLines"></div>' +
+      '<label>Ship to<select id="cCc"><option value="">Choose a country…</option>' + opts + '<option value="_other">Other country — contact us</option></select></label>' +
+      '<div class="pay"><b style="font-size:14px">Payment</b>' +
+      '<label><input type="radio" name="cPay" value="wise" checked> Bank transfer via Wise (prices as shown)</label>' +
+      '<label><input type="radio" name="cPay" value="paypal"> PayPal invoice — first order only (+' + Math.round(C.paypalRate * 1000) / 10 + '% fees)</label></div>' +
+      '<div class="two">' + f('cCo', 'Company') + f('cNm', 'Contact name *') + '</div>' +
+      '<div class="two">' + f('cEm', 'Email *', 'email') + f('cWa', 'WhatsApp', 'tel', '+1 …') + '</div>' +
+      f('cA1', 'Address *') + f('cA2', 'Address line 2') +
+      '<div class="two">' + f('cCi', 'City *') + f('cRg', 'State / region') + '</div>' +
+      '<div class="two">' + f('cPo', 'Postal code *') + '<span></span></div>' +
+      '<div class="sum" id="cSum"></div>' +
+      '<label class="agree"><input type="checkbox" id="cOk"><span>I understand: prepayment only; import duties and taxes are paid by me on delivery (DAP); Pick Up items are fixed prices; returns only if an item is not as described.</span></label>' +
+      '<div class="note">Pieces are reserved for ' + C.holdHours + ' hours once we confirm your order. Payment instructions are sent by email.</div>' +
+      '<button type="button" class="go" id="cGo">Place order</button><div id="cMsg"></div></div>';
+    document.body.appendChild(d);
+    el('cX').onclick = function () { d.close(); };
+    d.addEventListener('click', function (e) { if (e.target === d) d.close(); });
+    var saved = {}; try { saved = JSON.parse(ls.get('ws_contact') || '{}') || {}; } catch (e) {}
+    ['cCo', 'cNm', 'cEm', 'cWa', 'cA1', 'cA2', 'cCi', 'cRg', 'cPo', 'cCc'].forEach(function (id) { if (saved[id]) el(id).value = saved[id]; });
+    d.addEventListener('input', render); d.addEventListener('change', render);
+    el('cGo').onclick = submit;
+    return d;
+  }
+  function method() { var r = document.querySelector('input[name="cPay"]:checked'); return r ? r.value : 'wise'; }
+
+  function render() {
+    var d = el('cdlg'); if (!d) return;
+    var cur = api.cur(), cc = el('cCc').value, q = quote(cur, cc, method());
+    el('cLines').innerHTML = cart.map(function (s) {
+      var it = byS[s]; if (!it) return '';
+      return '<div class="ln"><span>' + api.esc(it.brand + ' ' + it.model) + ' <span class="ref">Ref. ' + api.esc(s) + '</span>' +
+        (it.tier === 'pickup' ? ' <span class="badge b-pick">Pick Up</span>' : '') + '</span><span>' + fmt(it.prices[cur], cur) +
+        ' <button type="button" data-rm="' + api.esc(s) + '" aria-label="Remove">×</button></span></div>';
+    }).join('') || '<div class="note">No pieces yet.</div>';
+    Array.prototype.forEach.call(el('cLines').querySelectorAll('[data-rm]'), function (b) { b.onclick = function () { toggle(b.getAttribute('data-rm')); }; });
+    var rows = [['Subtotal', fmt(q.sub, cur)]];
+    if (cc === '_other') rows.push(['Shipping', 'Contact us']);
+    else rows.push(['Shipping (DHL Express)', q.free ? 'Free' : q.ship === null ? 'Choose a country' : fmt(q.ship, cur)]);
+    if (q.fee) rows.push(['PayPal fee', fmt(q.fee, cur)]);
+    var more = (C.free[cur] || 0) - q.nonPick;
+    var html = rows.map(function (r) { return '<div><span>' + r[0] + '</span><span>' + r[1] + '</span></div>'; }).join('') +
+      '<div class="tot"><span>Total</span><span>' + (q.total === null ? '—' : fmt(q.total, cur)) + '</span></div>' +
+      (!q.free && more > 0 && q.n ? '<div class="note">Add ' + fmt(more, cur) + ' more (excluding Pick Up) for free shipping.</div>' : '') +
+      '<div class="note">Import duties and taxes are not included (paid on delivery).</div>';
+    el('cSum').innerHTML = html;
+    var other = cc === '_other';
+    el('cGo').textContent = other ? 'Contact us on WhatsApp' : 'Place order';
+    el('cGo').disabled = !q.n || (!other && (q.total === null || !el('cOk').checked));
+  }
+
+  function msg(text, err) { el('cMsg').innerHTML = text ? '<div class="msg' + (err ? ' err' : '') + '">' + text + '</div>' : ''; }
+  var b64u = function (u8) { var s = ''; for (var i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+
+  async function submit() {
+    var cc = el('cCc').value, cur = api.cur();
+    if (cc === '_other') {
+      var t = 'Hello, I would like to order: ' + cart.join(', ') + ' (' + cur + ').';
+      window.open('https://wa.me/' + String(C.whatsapp || '').replace(/[^0-9]/g, '') + '?text=' + encodeURIComponent(t), '_blank', 'noopener');
+      return;
+    }
+    var v = function (id) { return el(id).value.trim(); };
+    var contact = { company: v('cCo'), name: v('cNm'), email: v('cEm'), whatsapp: v('cWa'), address1: v('cA1'), address2: v('cA2'), city: v('cCi'), region: v('cRg'), postal: v('cPo') };
+    if (!contact.name || !contact.email || !contact.address1 || !contact.city || !contact.postal) return msg('Please fill in the fields marked *.', true);
+    var keep = {}; ['cCo', 'cNm', 'cEm', 'cWa', 'cA1', 'cA2', 'cCi', 'cRg', 'cPo', 'cCc'].forEach(function (id) { keep[id] = el(id).value; });
+    ls.set('ws_contact', JSON.stringify(keep));
+    var A = window.__WSAUTH;
+    if (!A || !window.crypto || !crypto.subtle) return msg('Ordering is not available on this page. Please contact us.', true);
+    var go = el('cGo'); go.disabled = true; msg('Sending your order…');
+    try {
+      var body = JSON.stringify({ ts: Date.now(), nonce: String(Date.now()) + Math.random().toString(36).slice(2), items: cart.slice(), cur: cur,
+                                  method: method(), country: cc, contact: contact, shownTotal: quote(cur, cc, method()).total });
+      var k = await crypto.subtle.importKey('raw', A.key, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+      var sig = b64u(new Uint8Array(await crypto.subtle.sign('HMAC', k, new TextEncoder().encode(body))));
+      var r = await fetch(C.relay, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                                     body: JSON.stringify({ type: 'ws_order', buyer: A.id, body: body, sig: sig }) });
+      var j = await r.json();
+      if (!j || !j.ok) {
+        if (j && j.gone) { j.gone.forEach(function (s) { var i = cart.indexOf(s); if (i >= 0) cart.splice(i, 1); }); save(); api.redraw(); bar(); render(); }
+        go.disabled = false; return msg(api.esc((j && j.error) || 'Something went wrong. Please try again.'), true);
+      }
+      var tot = j.quote ? fmt(j.quote.total, j.cur) : '';
+      cart = []; save(); api.redraw(); bar(); render();
+      msg('<b>Order ' + api.esc(j.orderId) + ' received' + (tot ? ' — ' + tot : '') + '.</b><br>' +
+          (j.status === 'pending' ? 'We will review it and email you within 24 hours.' : 'Your pieces are being reserved. Payment instructions will arrive by email in a few minutes.'));
+    } catch (e) { go.disabled = false; msg('Could not send the order. Please check your connection and try again.', true); }
+  }
+
+  function openDlg() { var d = dlg(); render(); msg(''); if (!d.open) d.showModal(); }
+  function toggle(s) {
+    var i = cart.indexOf(s);
+    if (i >= 0) cart.splice(i, 1);
+    else if (byS[s] && !byS[s].reserved && cart.length < C.maxItems) cart.push(s);
+    save(); api.redraw(); bar(); render();
+    Array.prototype.forEach.call(document.querySelectorAll('[data-add="' + s + '"]'), function (b) {
+      var on = cart.indexOf(s) >= 0; b.className = 'add' + (on ? ' on' : ''); b.textContent = on ? 'In order ✓' : 'Add to order';
+    });
+  }
+
+  window.__wsCart = { has: function (s) { return cart.indexOf(s) >= 0; }, toggle: toggle, sync: function () { if (api) { bar(); render(); } } };
+  window.__wsCartInit = function (a) {
+    api = a; C = (window.D && window.D.order) || a.order;
+    if (!C) return;
+    a.items.forEach(function (it) { byS[it.sku] = it; });
+    KEY = 'ws_cart_' + ((window.__WSAUTH && window.__WSAUTH.id) || 'x');
+    try { cart = (JSON.parse(ls.get(KEY) || '[]') || []).filter(function (s) { return byS[s] && !byS[s].reserved; }); } catch (e) { cart = []; }
+    document.addEventListener('click', function (e) { var b = e.target.closest('[data-add]'); if (b) { e.preventDefault(); toggle(b.getAttribute('data-add')); } });
+    api.redraw(); bar();
+  };
+})();</script>
 <script>
 (async function () {
   if (D) return;
@@ -207,6 +384,7 @@ if (D) __start();
     for (var b = 0; b < blocks; b++) { var mm = new Uint8Array(20); mm.set(n); new DataView(mm.buffer).setUint32(16, b); jobs.push(sign(encKey, mm)); }
     var ks = await Promise.all(jobs), out = new Uint8Array(c.length);
     for (var i = 0; i < c.length; i++) out[i] = c[i] ^ ks[i >> 5][i & 31];
+    window.__WSAUTH = { id: m[1], key: b64(m[2]) };
     D = JSON.parse(new TextDecoder().decode(out));
     __start();
   } catch (e) { fail(); }
