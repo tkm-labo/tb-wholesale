@@ -61,8 +61,11 @@ a.btn{display:inline-block;text-align:center;background:var(--accent);color:var(
 .badge{display:inline-block;font-size:11px;font-weight:650;padding:1px 7px;border-radius:999px;margin-left:6px;vertical-align:middle}
 .b-new{background:var(--accent);color:var(--bg)}
 .b-pick{background:#b5542d;color:#fff}
-.b-res{background:var(--chip);color:var(--muted);border:1px solid var(--line)}
-.card.res{opacity:.6}
+.b-res{background:#c62828;color:#fff}
+.phw{position:relative}
+.card.res .ph{filter:grayscale(1);opacity:.5}
+.card.res .body{opacity:.6}
+.ribbon{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);background:#c62828;color:#fff;text-align:center;font-weight:700;font-size:13px;letter-spacing:.1em;text-transform:uppercase;padding:6px 0}
 .terms{margin:0 0 8px;padding-left:18px}
 .terms li{margin:2px 0}
 .note{font-size:13px;color:var(--muted);margin:4px 0}
@@ -121,7 +124,9 @@ function __start(){
     });
     if (s !== 'new') list = list.slice().sort(function (x, y) { var a = (x.prices || {})[cur] || 0, c = (y.prices || {})[cur] || 0; return s === 'lo' ? a - c : c - a; });
     var isPick = function (it) { return it.tier === 'pickup' && !it.reserved; };
-    var pick = list.filter(isPick), rest = list.filter(function (it) { return !isPick(it); });
+    var cap = cols() * ((D && D.pickRows) || 5);
+    var pick = list.filter(isPick).sort(function (x, y) { return (x.pickRank || 1e9) - (y.pickRank || 1e9); }).slice(0, cap);
+    var rest = list.filter(function (it) { return pick.indexOf(it) < 0; });
     rest = rest.filter(function (it) { return !it.reserved; }).concat(rest.filter(function (it) { return it.reserved; }));
     document.getElementById('pickSec').hidden = !pick.length;
     document.getElementById('allH').hidden = !pick.length;
@@ -129,11 +134,15 @@ function __start(){
     empty.hidden = list.length > 0;
     grid.innerHTML = rest.map(card).join('');
   }
-  function badge(it) { return it.reserved ? '<span class="badge b-res">Reserved</span>' : it.tier === 'pickup' ? '<span class="badge b-pick">Pick Up</span>' : it.tier === 'new' ? '<span class="badge b-new">New</span>' : ''; }
+  function cols() { var t = getComputedStyle(grid).gridTemplateColumns; return Math.max(1, t && t !== 'none' ? t.split(' ').filter(Boolean).length : 1); }
+  var lastCols = 0;
+  window.addEventListener('resize', function () { var c = cols(); if (c !== lastCols) { lastCols = c; draw(); } });
+  function badge(it) { return it.reserved ? '<span class="badge b-res">Unavailable</span>' : it.tier === 'pickup' ? '<span class="badge b-pick">Pick Up</span>' : it.tier === 'new' ? '<span class="badge b-new">New</span>' : ''; }
   function card(it) {
       return '<div class="card' + (it.reserved ? ' res' : '') + '" tabindex="0" data-sku="' + esc(it.sku) + '">' +
-        '<img class="ph" loading="lazy" alt="' + esc(it.brand + ' ' + it.model) + '" src="' + img(it.images[0], 600) + '">' +
-        '<div class="body"><div class="brand">' + esc(it.brand || '—') + badge(it) + '</div><div class="model">' + esc(it.model) + '</div>' +
+        '<div class="phw"><img class="ph" loading="lazy" alt="' + esc(it.brand + ' ' + it.model) + '" src="' + img(it.images[0], 600) + '">' +
+        (it.reserved ? '<span class="ribbon">Unavailable</span>' : '') + '</div>' +
+        '<div class="body"><div class="brand">' + esc(it.brand || '—') + (it.reserved ? '' : badge(it)) + '</div><div class="model">' + esc(it.model) + '</div>' +
         '<div class="specs">' + esc(specs(it)) + '</div>' +
         '<div class="row"><span class="price">' + money(it) + '</span><span class="ref">Ref. ' + esc(it.sku) + '</span></div></div></div>';
   }
@@ -151,7 +160,7 @@ function __start(){
     var rows = [['Reference', cur_it.sku], ['Type', cur_it.type], ['Movement', cur_it.movement], ['Case', [cur_it.caseSize ? cur_it.caseSize + ' mm' : '', cur_it.caseMaterial].filter(Boolean).join(', ')],
                 ['Condition', cur_it.condition], ['Gender', cur_it.gender], ['Strap', cur_it.band], ['Included', cur_it.accessories]].filter(function (r) { return r[1]; });
     var mail = D.contact ? '<a class="btn" href="mailto:' + esc(D.contact) + '?subject=' + encodeURIComponent('Inquiry Ref. ' + cur_it.sku + ' ' + cur_it.brand + ' ' + cur_it.model) + '">Inquire about this piece</a>' : '';
-    if (cur_it.reserved) mail = '<p class="note">Reserved — this piece is in an auction on another channel. It may become available again if that sale does not complete.</p>';
+    if (cur_it.reserved) mail = '<p class="note">This piece is currently unavailable.</p>';
     else if (cur_it.tier === 'pickup') mail = '<p class="note">Pick Up · fixed price</p>' + mail;
     document.getElementById('info').innerHTML = '<h2>' + esc(cur_it.brand) + badge(cur_it) + '</h2><div class="model">' + esc(cur_it.model) + '</div>' +
       '<div class="price">' + money(cur_it) + '</div><dl>' + rows.map(function (r) { return '<dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd>'; }).join('') + '</dl>' + mail;
