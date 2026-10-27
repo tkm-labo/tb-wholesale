@@ -57,7 +57,7 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 a.btn{display:inline-block;text-align:center;background:var(--accent);color:var(--bg);text-decoration:none;padding:9px 14px;border-radius:8px;font-weight:600}
 .sec{font-size:16px;margin:4px 0 10px}
 .sec .sub{font-weight:400}
-#pickSec{margin-bottom:22px}
+#tabs [data-t=pick]:not(.on){color:#b5542d;font-weight:650}
 .badge{display:inline-block;font-size:11px;font-weight:650;padding:1px 7px;border-radius:999px;margin-left:6px;vertical-align:middle}
 .b-new{background:var(--accent);color:var(--bg)}
 .b-pick{background:#b5542d;color:#fff}
@@ -71,6 +71,7 @@ a.btn{display:inline-block;text-align:center;background:var(--accent);color:var(
 .note{font-size:13px;color:var(--muted);margin:4px 0}
 [hidden]{display:none!important}
 #tabs{margin-top:10px}
+#tabs button{white-space:nowrap}
 .about{max-width:880px}
 .about h2{font-size:24px;margin:8px 0}
 .about .lead{font-size:16px;line-height:1.6}
@@ -115,7 +116,7 @@ a.btn.wa{background:#1f7a4d;color:#fff;margin-left:6px}
 <header><div class="wrap">
   <h1>TIME BRIDGE — Wholesale Stock</h1>
   <div class="sub" id="sub"></div>
-  <div class="seg" id="tabs" role="tablist"><button type="button" data-t="stock" class="on">Stock</button><button type="button" data-t="about">About us</button></div>
+  <div class="seg" id="tabs" role="tablist"><button type="button" data-t="stock" class="on">Stock</button><button type="button" data-t="pick">Pick Up</button><button type="button" data-t="about">About us</button></div>
   <div class="tools">
     <input id="q" type="search" placeholder="Search brand, model, ref…" aria-label="Search">
     <select id="brand" aria-label="Brand"><option value="">All brands</option></select>
@@ -125,7 +126,7 @@ a.btn.wa{background:#1f7a4d;color:#fff;margin-left:6px}
     <div class="seg" id="cur" role="group" aria-label="Currency"></div>
   </div>
 </div></header>
-<main><div class="wrap"><div id="stockV"><section id="pickSec" hidden><h2 class="sec">Pick Up <span class="sub">— fixed clearance prices</span></h2><div class="grid" id="pgrid"></div></section><h2 class="sec" id="allH" hidden>All stock</h2><div class="grid" id="grid"></div><div class="empty" id="empty" hidden>No items match.</div></div><section id="aboutV" class="about" hidden></section></div></main>
+<main><div class="wrap"><div id="stockV"><p class="note" id="allH" hidden>Pick Up — fixed clearance prices. Not counted toward free shipping.</p><div class="grid" id="grid"></div><div class="empty" id="empty" hidden>No items match.</div></div><section id="aboutV" class="about" hidden></section></div></main>
 <footer><div class="wrap"><ul class="terms" id="terms"></ul>Wholesale prices per piece. Stock is updated every 30 minutes and items may sell on other channels without notice — please confirm availability with the reference number.</div></footer>
 <dialog id="dlg"><div class="dlg">
   <div class="viewer"><button class="close" id="x" aria-label="Close">×</button>
@@ -156,14 +157,18 @@ function __start(){
       '<p class="links">' + (wa0 ? '<a class="btn wa" style="margin-left:0" target="_blank" rel="noopener" href="https://wa.me/' + wa0.replace(/[^0-9]/g, '') + '">WhatsApp</a> ' : '') +
       (A.instagram ? '<a class="btn" target="_blank" rel="noopener" href="' + esc(A.instagram) + '">Instagram</a> ' : '') +
       (D.contact ? '<a class="btn" href="mailto:' + esc(D.contact) + '">Email</a>' : '') + '</p>';
-    Array.prototype.forEach.call(tabs.children, function (b) { b.onclick = function () {
-      var t = b.getAttribute('data-t');
-      document.getElementById('stockV').hidden = t !== 'stock'; document.getElementById('aboutV').hidden = t !== 'about';
-      document.querySelector('.tools').hidden = t !== 'stock';
-      Array.prototype.forEach.call(tabs.children, function (x) { x.className = x === b ? 'on' : ''; });
-      if (t === 'stock') draw(); window.scrollTo(0, 0);
-    }; });
-  } else tabs.hidden = true;
+  } else tabs.querySelector('[data-t="about"]').hidden = true;
+  // ★v1.17.5 Stock（目玉以外）と Pick Up（目玉だけ）は別のタブ・別の一覧（混ぜない）
+  var VIEW = 'stock', nPick = items.filter(function (it) { return it.tier === 'pickup'; }).length;
+  tabs.querySelector('[data-t="stock"]').textContent = 'Stock (' + (items.length - nPick) + ')';
+  var pkb = tabs.querySelector('[data-t="pick"]'); pkb.textContent = 'Pick Up (' + nPick + ')'; if (!nPick) pkb.hidden = true;
+  Array.prototype.forEach.call(tabs.children, function (b) { b.onclick = function () {
+    var t = b.getAttribute('data-t'), isList = t !== 'about';
+    document.getElementById('stockV').hidden = !isList; document.getElementById('aboutV').hidden = isList;
+    document.querySelector('.tools').hidden = !isList;
+    Array.prototype.forEach.call(tabs.children, function (x) { x.className = x === b ? 'on' : ''; });
+    if (isList) { VIEW = t; draw(); } window.scrollTo(0, 0);
+  }; });
 
   var brands = {}; items.forEach(function (it) { if (it.brand) brands[it.brand] = 1; });
   var bsel = document.getElementById('brand');
@@ -181,23 +186,14 @@ function __start(){
       return [it.brand, it.model, it.sku, it.movement, it.caseMaterial].join(' ').toLowerCase().indexOf(q) >= 0;
     });
     if (s !== 'new') list = list.slice().sort(function (x, y) { var a = (x.prices || {})[cur] || 0, c = (y.prices || {})[cur] || 0; return s === 'lo' ? a - c : c - a; });
-    var isPick = function (it) { return it.tier === 'pickup' && !it.reserved; };
-    var cap = cols() * ((D && D.pickRows) || 5);
-    var pick = list.filter(isPick);
-    if (s === 'new') pick.sort(function (x, y) { return (x.pickRank || 1e9) - (y.pickRank || 1e9); });
-    pick = pick.slice(0, cap);
-    var rest = list.filter(function (it) { return pick.indexOf(it) < 0; });
-    rest = rest.filter(function (it) { return !it.reserved; }).concat(rest.filter(function (it) { return it.reserved; }));
-    document.getElementById('pickSec').hidden = !pick.length;
-    document.getElementById('allH').hidden = !pick.length;
-    document.getElementById('pgrid').innerHTML = pick.map(card).join('');
+    list = list.filter(function (it) { return (it.tier === 'pickup') === (VIEW === 'pick'); });
+    if (VIEW === 'pick' && s === 'new') list.sort(function (x, y) { return (x.pickRank || 1e9) - (y.pickRank || 1e9); });
+    list = list.filter(function (it) { return !it.reserved; }).concat(list.filter(function (it) { return it.reserved; }));
+    document.getElementById('allH').hidden = VIEW !== 'pick';
     empty.hidden = list.length > 0;
-    grid.innerHTML = rest.map(card).join('');
+    grid.innerHTML = list.map(card).join('');
     if (window.__wsCart) __wsCart.sync();
   }
-  function cols() { var t = getComputedStyle(grid).gridTemplateColumns; return Math.max(1, t && t !== 'none' ? t.split(' ').filter(Boolean).length : 1); }
-  var lastCols = 0;
-  window.addEventListener('resize', function () { var c = cols(); if (c !== lastCols) { lastCols = c; draw(); } });
   function badge(it) { return it.reserved ? '<span class="badge b-res">Unavailable</span>' : it.fresh ? '<span class="badge b-new">New</span>' : ''; }
   function card(it) {
       return '<div class="card' + (it.reserved ? ' res' : '') + '" tabindex="0" data-sku="' + esc(it.sku) + '">' +
