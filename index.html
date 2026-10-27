@@ -57,7 +57,6 @@ dialog::backdrop{background:rgba(0,0,0,.6)}
 a.btn{display:inline-block;text-align:center;background:var(--accent);color:var(--bg);text-decoration:none;padding:9px 14px;border-radius:8px;font-weight:600}
 .sec{font-size:16px;margin:4px 0 10px}
 .sec .sub{font-weight:400}
-#tabs [data-t=pick]:not(.on){color:#b5542d;font-weight:650}
 .badge{display:inline-block;font-size:11px;font-weight:650;padding:1px 7px;border-radius:999px;margin-left:6px;vertical-align:middle}
 .b-new{background:var(--accent);color:var(--bg)}
 .b-pick{background:#b5542d;color:#fff}
@@ -71,7 +70,9 @@ a.btn{display:inline-block;text-align:center;background:var(--accent);color:var(
 .note{font-size:13px;color:var(--muted);margin:4px 0}
 [hidden]{display:none!important}
 #tabs{margin-top:10px}
-#tabs button{white-space:nowrap}
+#tabs button{white-space:nowrap;font-weight:700}
+#tabs [data-t=about]{background:var(--chip)}
+#tabs [data-t=about].on{background:var(--accent);color:var(--bg)}
 .about{max-width:880px}
 .about h2{font-size:24px;margin:8px 0}
 .about .lead{font-size:16px;line-height:1.6}
@@ -116,7 +117,7 @@ a.btn.wa{background:#1f7a4d;color:#fff;margin-left:6px}
 <header><div class="wrap">
   <h1>TIME BRIDGE — Wholesale Stock</h1>
   <div class="sub" id="sub"></div>
-  <div class="seg" id="tabs" role="tablist"><button type="button" data-t="stock" class="on">Stock</button><button type="button" data-t="pick">Pick Up</button><button type="button" data-t="about">About us</button></div>
+  <div class="seg" id="tabs" role="tablist"><button type="button" data-t="new">New In</button><button type="button" data-t="pick">Pick Up</button><button type="button" data-t="all">All Stock</button><button type="button" data-t="about">About us</button></div>
   <div class="tools">
     <input id="q" type="search" placeholder="Search brand, model, ref…" aria-label="Search">
     <select id="brand" aria-label="Brand"><option value="">All brands</option></select>
@@ -158,10 +159,13 @@ function __start(){
       (A.instagram ? '<a class="btn" target="_blank" rel="noopener" href="' + esc(A.instagram) + '">Instagram</a> ' : '') +
       (D.contact ? '<a class="btn" href="mailto:' + esc(D.contact) + '">Email</a>' : '') + '</p>';
   } else tabs.querySelector('[data-t="about"]').hidden = true;
-  // ★v1.17.5 Stock（目玉以外）と Pick Up（目玉だけ）は別のタブ・別の一覧（混ぜない）
-  var VIEW = 'stock', nPick = items.filter(function (it) { return it.tier === 'pickup'; }).length;
-  tabs.querySelector('[data-t="stock"]').textContent = 'Stock (' + (items.length - nPick) + ')';
-  var pkb = tabs.querySelector('[data-t="pick"]'); pkb.textContent = 'Pick Up (' + nPick + ')'; if (!nPick) pkb.hidden = true;
+  // ★v1.17.6 一覧のタブは3つ（New In＝New のバッジの個体 / Pick Up＝目玉 / All Stock＝全部）。タブごとに別の一覧
+  var inView = { new: function (it) { return !!it.fresh; }, pick: function (it) { return it.tier === 'pickup'; }, all: function () { return true; } };
+  var nNew = items.filter(inView.new).length, nPick = items.filter(inView.pick).length;
+  var VIEW = nNew ? 'new' : 'all';
+  [['new', 'New In', nNew], ['pick', 'Pick Up', nPick], ['all', 'All Stock', items.length]].forEach(function (x) {
+    var bt = tabs.querySelector('[data-t="' + x[0] + '"]'); bt.textContent = x[1] + ' (' + x[2] + ')'; bt.hidden = !x[2]; bt.className = x[0] === VIEW ? 'on' : '';
+  });
   Array.prototype.forEach.call(tabs.children, function (b) { b.onclick = function () {
     var t = b.getAttribute('data-t'), isList = t !== 'about';
     document.getElementById('stockV').hidden = !isList; document.getElementById('aboutV').hidden = isList;
@@ -186,7 +190,7 @@ function __start(){
       return [it.brand, it.model, it.sku, it.movement, it.caseMaterial].join(' ').toLowerCase().indexOf(q) >= 0;
     });
     if (s !== 'new') list = list.slice().sort(function (x, y) { var a = (x.prices || {})[cur] || 0, c = (y.prices || {})[cur] || 0; return s === 'lo' ? a - c : c - a; });
-    list = list.filter(function (it) { return (it.tier === 'pickup') === (VIEW === 'pick'); });
+    list = list.filter(inView[VIEW] || inView.all);
     if (VIEW === 'pick' && s === 'new') list.sort(function (x, y) { return (x.pickRank || 1e9) - (y.pickRank || 1e9); });
     list = list.filter(function (it) { return !it.reserved; }).concat(list.filter(function (it) { return it.reserved; }));
     document.getElementById('allH').hidden = VIEW !== 'pick';
@@ -194,7 +198,7 @@ function __start(){
     grid.innerHTML = list.map(card).join('');
     if (window.__wsCart) __wsCart.sync();
   }
-  function badge(it) { return it.reserved ? '<span class="badge b-res">Unavailable</span>' : it.fresh ? '<span class="badge b-new">New</span>' : ''; }
+  function badge(it) { return it.reserved ? '<span class="badge b-res">Unavailable</span>' : (it.fresh && VIEW !== 'new') ? '<span class="badge b-new">New</span>' : ''; }
   function card(it) {
       return '<div class="card' + (it.reserved ? ' res' : '') + '" tabindex="0" data-sku="' + esc(it.sku) + '">' +
         '<div class="phw"><img class="ph" loading="lazy" alt="' + esc(it.brand + ' ' + it.model) + '" src="' + img(it.images[0], 600) + '">' +
