@@ -68,6 +68,15 @@ a.btn{display:inline-block;text-align:center;background:var(--accent);color:var(
 .terms{margin:0 0 8px;padding-left:18px}
 .terms li{margin:2px 0}
 .note{font-size:13px;color:var(--muted);margin:4px 0}
+.wp{display:flex;flex-direction:column;line-height:1.25}
+.wp small{font-size:10.5px;font-weight:650;letter-spacing:.08em;color:var(--muted)}
+.wp span{font-size:14px;font-weight:650}
+.info .wp span{font-size:17px}
+.join{margin-top:6px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--chip)}
+.join a.btn.wa{margin-left:0;display:block}
+.join p{margin:8px 0 0;font-size:13px;color:var(--muted)}
+#joinTop{margin-left:auto;white-space:nowrap}
+@media(max-width:520px){#joinTop{margin-left:0;width:100%}}
 [hidden]{display:none!important}
 #tabs{margin-top:10px}
 #tabs button{white-space:nowrap;font-weight:700}
@@ -128,7 +137,7 @@ a.btn.wa{background:#1f7a4d;color:#fff;margin-left:6px}
   </div>
 </div></header>
 <main><div class="wrap"><div id="stockV"><p class="note" id="allH" hidden>Pick Up — fixed clearance prices. Not counted toward free shipping.</p><div class="grid" id="grid"></div><div class="empty" id="empty" hidden>No items match.</div></div><section id="aboutV" class="about" hidden></section></div></main>
-<footer><div class="wrap"><ul class="terms" id="terms"></ul>Wholesale prices per piece. Stock is updated every 30 minutes and items may sell on other channels without notice — please confirm availability with the reference number.</div></footer>
+<footer><div class="wrap"><ul class="terms" id="terms"></ul><span id="foot">Wholesale prices per piece. Stock is updated every 30 minutes and items may sell on other channels without notice — please confirm availability with the reference number.</span></div></footer>
 <dialog id="dlg"><div class="dlg">
   <div class="viewer"><button class="close" id="x" aria-label="Close">×</button>
     <img id="big" alt=""><button class="nav l" id="pv" aria-label="Previous">‹</button><button class="nav r" id="nx" aria-label="Next">›</button>
@@ -144,14 +153,25 @@ function __start(){
   var SYM = { USD: '$', EUR: '€' };
   var img = function (id, w) { return 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(id) + '&sz=w' + w; };
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
-  var money = function (it) { var v = it.prices && it.prices[cur]; return v ? (SYM[cur] || '') + Number(v).toLocaleString('en-US') + ' ' + cur : '—'; };
+  // ★v1.18.0 公開カタログ（LinkedIn 用）: 値段は載っていない。★v1.18.1 卸値は WhatsApp のグループ（承認制）に入った業者だけ
+  var PUB = !!(D && D.mode === 'public'), WA = (D && ((D.order && D.order.whatsapp) || D.whatsapp)) || '';
+  var waUrl = function (t) { return 'https://wa.me/' + WA.replace(/[^0-9]/g, '') + (t ? '?text=' + encodeURIComponent(t) : ''); };
+  // 参加の入口: グループの招待リンク（D.join）。まだ無ければ WhatsApp の個別チャットに参加の申し込みを送ってもらう
+  var joinUrl = function () { return (D && D.join) || waUrl('Hello TIME BRIDGE, I would like to join your wholesale WhatsApp group.\nCompany / shop:\nCountry:\nWebsite or Instagram:'); };
+  var money = function (it) { if (PUB) return '<span class="wp"><small>WHOLESALE PRICE</small><span>Available to members</span></span>'; var v = it.prices && it.prices[cur]; return v ? (SYM[cur] || '') + Number(v).toLocaleString('en-US') + ' ' + cur : '—'; };
+  if (PUB) {
+    ['lo', 'hi'].forEach(function (v) { var o = document.querySelector('#sort option[value="' + v + '"]'); if (o) o.remove(); });
+    document.getElementById('sort').hidden = true; document.getElementById('cur').hidden = true;
+    if (D.footer) document.getElementById('foot').textContent = D.footer;
+    document.querySelector('.tools').insertAdjacentHTML('beforeend', '<a class="btn wa" id="joinTop" target="_blank" rel="noopener" href="' + esc(joinUrl()) + '">Join WhatsApp for wholesale prices</a>');
+  }
   var specs = function (it) { return [it.type === 'Pocket watch' ? 'Pocket watch' : '', it.movement, it.caseSize ? it.caseSize + ' mm' : '', it.caseMaterial, it.condition].filter(Boolean).join(' · '); };
   var when = D && D.builtAt ? new Date(D.builtAt) : null;
   document.getElementById('sub').textContent = (D && D.buyer ? 'Prepared for ' + D.buyer + ' · ' : '') + items.filter(function (it) { return !it.reserved; }).length + ' pieces available' + (when ? ' · updated ' + when.toLocaleString() : '');
   document.getElementById('terms').innerHTML = ((D && D.terms) || []).map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('');
   var tabs = document.getElementById('tabs'), A = D && D.about;
   if (A) {
-    var wa0 = D.order && D.order.whatsapp;
+    var wa0 = WA;
     document.getElementById('aboutV').innerHTML = '<h2>' + esc(A.title) + '</h2><p class="lead">' + esc(A.lead) + '</p>' +
       '<div class="stats">' + (A.stats || []).map(function (s) { return '<div><b>' + esc(s.n) + '</b><span>' + esc(s.label) + '</span></div>'; }).join('') + '</div>' +
       '<div class="pts">' + (A.points || []).map(function (p) { return '<div>' + (window.__wsPoint ? __wsPoint(p, esc) : '<h3>' + esc(p.h) + '</h3><p>' + esc(p.p) + '</p>') + '</div>'; }).join('') + '</div>' +
@@ -208,7 +228,11 @@ function __start(){
         '<div class="row"><span class="price">' + money(it) + '</span><span class="ref">Ref. ' + esc(it.sku) + '</span></div>' + addBtn(it) + '</div></div>';
   }
   function addBtn(it) { if (!D.order || it.reserved) return ''; var on = window.__wsCart && __wsCart.has(it.sku); return '<button type="button" class="add' + (on ? ' on' : '') + '" data-add="' + esc(it.sku) + '">' + (on ? 'In order ✓' : 'Add to order') + '</button>'; }
-  function wa(it) { var n = D.order && D.order.whatsapp; return n ? '<a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/' + n.replace(/[^0-9]/g, '') + '?text=' + encodeURIComponent('Hello, I have a question about Ref. ' + it.sku + ' (' + it.brand + ' ' + it.model + ').') + '">Ask on WhatsApp</a>' : ''; }
+  function wa(it) {
+    if (PUB) return '<div class="join"><a class="btn wa" target="_blank" rel="noopener" href="' + esc(joinUrl()) + '">Join WhatsApp for Wholesale Prices</a>' +
+      '<p>Access wholesale prices and receive weekly new arrivals. For watch dealers and retailers.</p></div>';
+    return WA ? '<a class="btn wa" target="_blank" rel="noopener" href="' + waUrl('Hello, I have a question about Ref. ' + it.sku + ' (' + it.brand + ' ' + it.model + ').') + '">Ask on WhatsApp</a>' : '';
+  }
   ['q', 'brand', 'sort'].forEach(function (id) { document.getElementById(id).addEventListener(id === 'q' ? 'input' : 'change', draw); });
   var mainEl = document.querySelector('main');
   mainEl.addEventListener('click', function (e) { if (e.target.closest('[data-add]')) return; var c = e.target.closest('.card'); if (c) open(c.getAttribute('data-sku')); });
@@ -225,6 +249,7 @@ function __start(){
     var mail = D.contact && !(D.order && D.order.whatsapp) ? '<a class="btn" href="mailto:' + esc(D.contact) + '?subject=' + encodeURIComponent('Inquiry Ref. ' + cur_it.sku + ' ' + cur_it.brand + ' ' + cur_it.model) + '">Inquire about this piece</a>' : '';
     if (cur_it.reserved) mail = '<p class="note">This piece is currently unavailable.</p>';
     else if (cur_it.tier === 'pickup') mail = '<p class="note">Pick Up · fixed price</p>' + mail;
+    if (PUB) mail = cur_it.reserved ? mail : '';
     if (!cur_it.reserved) mail = addBtn(cur_it) + '<div>' + mail + wa(cur_it) + '</div>';
     document.getElementById('info').innerHTML = '<h2>' + esc(cur_it.brand) + badge(cur_it) + '</h2><div class="model">' + esc(cur_it.model) + '</div>' +
       '<div class="price">' + money(cur_it) + '</div><dl>' + rows.map(function (r) { return '<dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd>'; }).join('') + '</dl>' + mail;
@@ -410,6 +435,11 @@ if (D) __start();
   if (D) return;
   var sub = document.getElementById("sub"), empty = document.getElementById("empty");
   var fail = function () { sub.textContent = ""; empty.hidden = false; empty.textContent = "This link is not valid or has expired."; };
+  if (!location.hash || location.hash === "#") {
+    sub.textContent = "Loading…";
+    try { var rp = await fetch("d/public.json?t=" + Date.now(), { cache: "no-store" }); if (!rp.ok) return fail(); D = await rp.json(); __start(); } catch (e) { fail(); }
+    return;
+  }
   var m = location.hash.slice(1).match(/^([a-f0-9]{16})\.([A-Za-z0-9_-]{20,})$/);
   if (!m || !window.crypto || !crypto.subtle) return fail();
   sub.textContent = "Loading…";
