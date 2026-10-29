@@ -76,7 +76,9 @@ a.btn{display:inline-block;text-align:center;background:var(--accent);color:var(
 .join a.btn.wa{margin-left:0;display:block}
 .join p{margin:8px 0 0;font-size:13px;color:var(--muted)}
 #joinTop{margin-left:auto;white-space:nowrap}
-@media(max-width:520px){#joinTop{margin-left:0;width:100%}}
+@media(max-width:520px){#joinTop{margin-left:0;width:100%;white-space:normal}}
+#tabs{max-width:100%;overflow-x:auto}
+#tabs button{white-space:nowrap}
 [hidden]{display:none!important}
 #tabs{margin-top:10px}
 #tabs button{white-space:nowrap;font-weight:700}
@@ -153,17 +155,17 @@ function __start(){
   var SYM = { USD: '$', EUR: '€' };
   var img = function (id, w) { return 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(id) + '&sz=w' + w; };
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
-  // ★v1.18.0 公開カタログ（LinkedIn 用）: 値段は載っていない。★v1.18.1 卸値は WhatsApp のグループ（承認制）に入った業者だけ
+  // ★v1.18.0 公開カタログ（LinkedIn 用）: 値段は載っていない。★v1.18.3 卸値の URL は WhatsApp チャンネルの投稿で案内する
   var PUB = !!(D && D.mode === 'public'), WA = (D && ((D.order && D.order.whatsapp) || D.whatsapp)) || '';
   var waUrl = function (t) { return 'https://wa.me/' + WA.replace(/[^0-9]/g, '') + (t ? '?text=' + encodeURIComponent(t) : ''); };
-  // 参加の入口: グループの招待リンク（D.join）。まだ無ければ WhatsApp の個別チャットに参加の申し込みを送ってもらう
-  var joinUrl = function () { return (D && D.join) || waUrl('Hello TIME BRIDGE, I would like to join your wholesale WhatsApp group.\nCompany / shop:\nCountry:\nWebsite or Instagram:'); };
+  // 参加の入口: WhatsApp チャンネル（D.join）。無ければ個別チャット
+  var joinUrl = function () { return (D && D.join) || waUrl(''); };
   var money = function (it) { if (PUB) return '<span class="wp"><small>WHOLESALE PRICE</small><span>Available to members</span></span>'; var v = it.prices && it.prices[cur]; return v ? (SYM[cur] || '') + Number(v).toLocaleString('en-US') + ' ' + cur : '—'; };
   if (PUB) {
     ['lo', 'hi'].forEach(function (v) { var o = document.querySelector('#sort option[value="' + v + '"]'); if (o) o.remove(); });
     document.getElementById('sort').hidden = true; document.getElementById('cur').hidden = true;
     if (D.footer) document.getElementById('foot').textContent = D.footer;
-    document.querySelector('.tools').insertAdjacentHTML('beforeend', '<a class="btn wa" id="joinTop" target="_blank" rel="noopener" href="' + esc(joinUrl()) + '">Join WhatsApp for wholesale prices</a>');
+    document.querySelector('.tools').insertAdjacentHTML('beforeend', '<a class="btn wa" id="joinTop" target="_blank" rel="noopener" href="' + esc(joinUrl()) + '">Follow on WhatsApp for wholesale prices</a>');
   }
   var specs = function (it) { return [it.type === 'Pocket watch' ? 'Pocket watch' : '', it.movement, it.caseSize ? it.caseSize + ' mm' : '', it.caseMaterial, it.condition].filter(Boolean).join(' · '); };
   var when = D && D.builtAt ? new Date(D.builtAt) : null;
@@ -229,9 +231,9 @@ function __start(){
   }
   function addBtn(it) { if (!D.order || it.reserved) return ''; var on = window.__wsCart && __wsCart.has(it.sku); return '<button type="button" class="add' + (on ? ' on' : '') + '" data-add="' + esc(it.sku) + '">' + (on ? 'In order ✓' : 'Add to order') + '</button>'; }
   function wa(it) {
-    if (PUB) return '<div class="join"><a class="btn wa" target="_blank" rel="noopener" href="' + esc(joinUrl()) + '">Join WhatsApp for Wholesale Prices</a>' +
-      '<p>Access wholesale prices and receive weekly new arrivals. For watch dealers and retailers.</p></div>';
-    return WA ? '<a class="btn wa" target="_blank" rel="noopener" href="' + waUrl('Hello, I have a question about Ref. ' + it.sku + ' (' + it.brand + ' ' + it.model + ').') + '">Ask on WhatsApp</a>' : '';
+    if (PUB) return '<div class="join"><a class="btn wa" target="_blank" rel="noopener" href="' + esc(joinUrl()) + '">Follow on WhatsApp for Wholesale Prices</a>' +
+      '<p>Follow our WhatsApp channel and turn on notifications — we share our wholesale price list and weekly new arrivals there.</p></div>';
+    return WA ? '<a class="btn wa" target="_blank" rel="noopener" href="' + waUrl('') + '">Ask on WhatsApp</a>' : '';
   }
   ['q', 'brand', 'sort'].forEach(function (id) { document.getElementById(id).addEventListener(id === 'q' ? 'input' : 'change', draw); });
   var mainEl = document.querySelector('main');
